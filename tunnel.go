@@ -15,6 +15,18 @@ import (
 	"k8s.io/client-go/transport/spdy"
 )
 
+type Config struct {
+	K8sClient  rest.Interface
+	RestConfig *rest.Config
+
+	Namespace string
+	// Remote port to connect to
+	Remote int
+	// Resource includes type and name of the resource, like svc/cnr-server or
+	// pod/mypod-3445kdfg
+	Resource string
+}
+
 // Tunnel describes a ssh-like tunnel to a kubernetes pod.
 type Tunnel struct {
 	Local        int
@@ -25,25 +37,24 @@ type Tunnel struct {
 	Out          io.Writer
 	stopChan     chan struct{}
 	readyChan    chan struct{}
-	config       *rest.Config
+	restCfg      *rest.Config
 	client       rest.Interface
 }
 
 // NewTunnel creates a new tunnel.
-func NewTunnel(client rest.Interface, config *rest.Config, namespace, resource string, remote int) (*Tunnel, error) {
-	// resource includes type and name of the resource, like svc/cnr-server or pod/mypod-3445kdfg
-	items := strings.Split(resource, "/")
+func NewTunnel(config *Config) (*Tunnel, error) {
+	items := strings.Split(config.Resource, "/")
 	if len(items) != 2 {
 		return nil, microerror.Mask(invalidConfigError)
 	}
 
 	return &Tunnel{
-		config:       config,
-		client:       client,
-		Namespace:    namespace,
+		restCfg:      config.RestConfig,
+		client:       config.K8sClient,
+		Namespace:    config.Namespace,
 		ResourceType: items[0],
 		ResourceName: items[1],
-		Remote:       remote,
+		Remote:       config.Remote,
 		stopChan:     make(chan struct{}, 1),
 		readyChan:    make(chan struct{}, 1),
 		Out:          ioutil.Discard,
@@ -65,7 +76,7 @@ func (t *Tunnel) ForwardPort() error {
 		Name(t.ResourceName).
 		SubResource("portforward").URL()
 
-	transport, upgrader, err := spdy.RoundTripperFor(t.config)
+	transport, upgrader, err := spdy.RoundTripperFor(t.restCfg)
 	if err != nil {
 		return microerror.Mask(err)
 	}
