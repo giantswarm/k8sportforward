@@ -1,4 +1,4 @@
-package helmclient
+package k8sportforward
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/giantswarm/microerror"
 	"k8s.io/client-go/rest"
@@ -16,29 +17,37 @@ import (
 
 // Tunnel describes a ssh-like tunnel to a kubernetes pod.
 type Tunnel struct {
-	Local     int
-	Remote    int
-	Namespace string
-	PodName   string
-	Out       io.Writer
-	stopChan  chan struct{}
-	readyChan chan struct{}
-	config    *rest.Config
-	client    rest.Interface
+	Local        int
+	Remote       int
+	Namespace    string
+	ResourceName string
+	ResourceType string
+	Out          io.Writer
+	stopChan     chan struct{}
+	readyChan    chan struct{}
+	config       *rest.Config
+	client       rest.Interface
 }
 
 // NewTunnel creates a new tunnel.
-func NewTunnel(client rest.Interface, config *rest.Config, namespace, podName string, remote int) *Tunnel {
-	return &Tunnel{
-		config:    config,
-		client:    client,
-		Namespace: namespace,
-		PodName:   podName,
-		Remote:    remote,
-		stopChan:  make(chan struct{}, 1),
-		readyChan: make(chan struct{}, 1),
-		Out:       ioutil.Discard,
+func NewTunnel(client rest.Interface, config *rest.Config, namespace, resource string, remote int) (*Tunnel, error) {
+	// resource includes type and name of the resource, like svc/cnr-server or pod/mypod-3445kdfg
+	items := strings.Split(resource, "/")
+	if len(items) != 2 {
+		return nil, microerror.Mask(invalidConfigError)
 	}
+
+	return &Tunnel{
+		config:       config,
+		client:       client,
+		Namespace:    namespace,
+		ResourceType: items[0],
+		ResourceName: items[1],
+		Remote:       remote,
+		stopChan:     make(chan struct{}, 1),
+		readyChan:    make(chan struct{}, 1),
+		Out:          ioutil.Discard,
+	}, nil
 }
 
 // Close disconnects a tunnel connection.
@@ -51,9 +60,9 @@ func (t *Tunnel) ForwardPort() error {
 	// Build a url to the portforward endpoint.
 	// Example: http://localhost:8080/api/v1/namespaces/helm/pods/tiller-deploy-9itlq/portforward
 	u := t.client.Post().
-		Resource("pods").
+		Resource(t.ResourceType).
 		Namespace(t.Namespace).
-		Name(t.PodName).
+		Name(t.ResourceName).
 		SubResource("portforward").URL()
 
 	transport, upgrader, err := spdy.RoundTripperFor(t.config)
