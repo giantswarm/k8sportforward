@@ -20,10 +20,10 @@ type Config struct {
 	RestConfig *rest.Config
 
 	Namespace string
-	// Remote port to connect to
+	// Remote port to connect to.
 	Remote int
 	// Resource includes type and name of the resource, like svc/cnr-server or
-	// pod/mypod-3445kdfg
+	// pod/mypod-3445kdfg.
 	Resource string
 }
 
