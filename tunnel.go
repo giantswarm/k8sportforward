@@ -43,9 +43,15 @@ type Tunnel struct {
 
 // NewTunnel creates a new tunnel.
 func NewTunnel(config *Config) (*Tunnel, error) {
+	if config.K8sClient == nil {
+		return nil, microerror.Maskf(invalidConfigError, "config.K8sClient must not be empty")
+	}
+	if config.RestConfig == nil {
+		return nil, microerror.Maskf(invalidConfigError, "config.RRestConfig must not be empty")
+	}
 	items := strings.Split(config.Resource, "/")
 	if len(items) != 2 {
-		return nil, microerror.Mask(invalidConfigError)
+		return nil, microerror.Maskf(invalidConfigError, "config.Resource should be resource_type/resource_name eg. svc/mysvc")
 	}
 
 	return &Tunnel{
