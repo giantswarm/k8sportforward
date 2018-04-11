@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/giantswarm/microerror"
 	"k8s.io/client-go/rest"
@@ -22,23 +21,21 @@ type Config struct {
 	Namespace string
 	// Remote port to connect to.
 	Remote int
-	// Resource includes type and name of the resource, like svc/cnr-server or
-	// pod/mypod-3445kdfg.
-	Resource string
+	// PodName is the name of the pod to forward to.
+	PodName string
 }
 
 // Tunnel describes a ssh-like tunnel to a kubernetes pod.
 type Tunnel struct {
-	Local        int
-	Remote       int
-	Namespace    string
-	ResourceName string
-	ResourceType string
-	Out          io.Writer
-	stopChan     chan struct{}
-	readyChan    chan struct{}
-	restCfg      *rest.Config
-	client       rest.Interface
+	Local     int
+	Remote    int
+	Namespace string
+	PodName   string
+	Out       io.Writer
+	stopChan  chan struct{}
+	readyChan chan struct{}
+	restCfg   *rest.Config
+	client    rest.Interface
 }
 
 // NewTunnel creates a new tunnel.
@@ -47,23 +44,21 @@ func NewTunnel(config *Config) (*Tunnel, error) {
 		return nil, microerror.Maskf(invalidConfigError, "config.K8sClient must not be empty")
 	}
 	if config.RestConfig == nil {
-		return nil, microerror.Maskf(invalidConfigError, "config.RRestConfig must not be empty")
+		return nil, microerror.Maskf(invalidConfigError, "config.RestConfig must not be empty")
 	}
-	items := strings.Split(config.Resource, "/")
-	if len(items) != 2 {
-		return nil, microerror.Maskf(invalidConfigError, "config.Resource should be resource_type/resource_name eg. svc/mysvc")
+	if config.PodName == "" {
+		return nil, microerror.Maskf(invalidConfigError, "config.PodName must not be empty")
 	}
 
 	return &Tunnel{
-		restCfg:      config.RestConfig,
-		client:       config.K8sClient,
-		Namespace:    config.Namespace,
-		ResourceType: items[0],
-		ResourceName: items[1],
-		Remote:       config.Remote,
-		stopChan:     make(chan struct{}, 1),
-		readyChan:    make(chan struct{}, 1),
-		Out:          ioutil.Discard,
+		restCfg:   config.RestConfig,
+		client:    config.K8sClient,
+		Namespace: config.Namespace,
+		PodName:   config.PodName,
+		Remote:    config.Remote,
+		stopChan:  make(chan struct{}, 1),
+		readyChan: make(chan struct{}, 1),
+		Out:       ioutil.Discard,
 	}, nil
 }
 
@@ -77,9 +72,9 @@ func (t *Tunnel) ForwardPort() error {
 	// Build a url to the portforward endpoint.
 	// Example: http://localhost:8080/api/v1/namespaces/helm/pods/tiller-deploy-9itlq/portforward
 	u := t.client.Post().
-		Resource(t.ResourceType).
+		Resource("pods").
 		Namespace(t.Namespace).
-		Name(t.ResourceName).
+		Name(t.PodName).
 		SubResource("portforward").URL()
 
 	transport, upgrader, err := spdy.RoundTripperFor(t.restCfg)
