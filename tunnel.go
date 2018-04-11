@@ -41,12 +41,12 @@ func NewTunnel(client rest.Interface, config *rest.Config, namespace, podName st
 	}
 }
 
-// close disconnects a tunnel connection.
+// Close disconnects a tunnel connection.
 func (t *Tunnel) Close() {
 	close(t.stopChan)
 }
 
-// forwardPort opens a tunnel to a kubernetes pod.
+// ForwardPort opens a tunnel to a kubernetes pod.
 func (t *Tunnel) ForwardPort() error {
 	// Build a url to the portforward endpoint.
 	// Example: http://localhost:8080/api/v1/namespaces/helm/pods/tiller-deploy-9itlq/portforward
