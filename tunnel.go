@@ -101,7 +101,8 @@ type Tunnel struct {
 	stopChan chan struct{}
 }
 
-// Close disconnects a tunnel connection.
+// Close disconnects a tunnel connection. It always returns nil error to fulfil
+// io.Closer interface.
 func (t *Tunnel) Close() error {
 	close(t.stopChan)
 	return nil
