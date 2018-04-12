@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/giantswarm/microerror"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
@@ -19,7 +18,7 @@ type Config struct {
 }
 
 type Forwarder struct {
-	k8sClient  kubernetes.Interface
+	k8sClient  rest.Interface
 	restConfig *rest.Config
 }
 
@@ -28,7 +27,7 @@ func New(config Config) (*Forwarder, error) {
 		return nil, microerror.Maskf(invalidConfigError, "config.RestConfig must not be empty")
 	}
 
-	k8sClient, err := kubernetes.NewForConfig(config.RestConfig)
+	k8sClient, err := rest.RESTClientFor(config.RestConfig)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
@@ -43,7 +42,7 @@ func New(config Config) (*Forwarder, error) {
 func (f *Forwarder) ForwardPort(config TunnelConfig) (*Tunnel, error) {
 	// Build a url to the portforward endpoint.
 	// Example: http://localhost:8080/api/v1/namespaces/helm/pods/tiller-deploy-9itlq/portforward
-	u := f.k8sClient.CoreV1().RESTClient().Post().
+	u := f.k8sClient.Post().
 		Resource("pods").
 		Namespace(config.Namespace).
 		Name(config.PodName).
