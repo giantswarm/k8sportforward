@@ -40,10 +40,10 @@ func New(config Config) (*Forwarder, error) {
 }
 
 // ForwardPort opens a tunnel to a kubernetes pod.
-func (f *Forwarder) ForwardPort(cofnig TunnelConfig) (*Tunnel, error) {
+func (f *Forwarder) ForwardPort(config TunnelConfig) (*Tunnel, error) {
 	// Build a url to the portforward endpoint.
 	// Example: http://localhost:8080/api/v1/namespaces/helm/pods/tiller-deploy-9itlq/portforward
-	u := f.k8sClient.CoreV1().RESTClient.Post().
+	u := f.k8sClient.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Namespace(config.Namespace).
 		Name(config.PodName).
@@ -51,13 +51,13 @@ func (f *Forwarder) ForwardPort(cofnig TunnelConfig) (*Tunnel, error) {
 
 	transport, upgrader, err := spdy.RoundTripperFor(f.restConfig)
 	if err != nil {
-		return microerror.Mask(err)
+		return nil, microerror.Mask(err)
 	}
 	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", u)
 
 	local, err := getAvailablePort()
 	if err != nil {
-		return microerror.Mask(err)
+		return nil, microerror.Mask(err)
 	}
 
 	tunnel := &Tunnel{
@@ -73,7 +73,7 @@ func (f *Forwarder) ForwardPort(cofnig TunnelConfig) (*Tunnel, error) {
 
 	pf, err := portforward.New(dialer, ports, tunnel.stopChan, readyChan, out, out)
 	if err != nil {
-		return microerror.Mask(err)
+		return nil, microerror.Mask(err)
 	}
 
 	errChan := make(chan error)
