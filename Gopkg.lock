@@ -140,11 +140,13 @@
   revision = "aac5d23ea3ca7132d75daeed7516f8205553c832"
 
 [[projects]]
+  branch = "master"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
     "pkg/api/resource",
     "pkg/apis/meta/v1",
+    "pkg/apis/meta/v1/unstructured",
     "pkg/conversion",
     "pkg/conversion/queryparams",
     "pkg/fields",
@@ -178,8 +180,7 @@
     "third_party/forked/golang/netutil",
     "third_party/forked/golang/reflect"
   ]
-  revision = "17529ec7eadb8de8e7dc835201455f53571f655a"
-  version = "kubernetes-1.10.4"
+  revision = "521145febf93d5639dce48a49ee8dc080863b034"
 
 [[projects]]
   branch = "release-7.0"
