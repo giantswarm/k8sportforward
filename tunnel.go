@@ -1,6 +1,7 @@
 package k8sportforward
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -69,25 +70,30 @@ func (f *Forwarder) ForwardPort(config TunnelConfig) (*Tunnel, error) {
 		TunnelConfig: config,
 		Local:        local,
 
-		stopChan: make(chan struct{}, 1),
+		readyChan: make(chan struct{}, 1),
+		stopChan:  make(chan struct{}, 1),
 	}
 
 	out := ioutil.Discard
 	ports := []string{fmt.Sprintf("%d:%d", tunnel.Local, tunnel.Remote)}
-	readyChan := make(chan struct{}, 1)
 
 	// next line will prevent `ERROR: logging before flag.Parse:` errors from
 	// glog (used by k8s' apimachinery package) see
 	// https://github.com/kubernetes/kubernetes/issues/17162#issuecomment-225596212
 	flag.CommandLine.Parse([]string{})
-	pf, err := portforward.New(dialer, ports, tunnel.stopChan, readyChan, out, out)
+	pf, err := portforward.New(dialer, ports, tunnel.stopChan, tunnel.readyChan, out, out)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	errChan := make(chan error)
 	go func() {
-		errChan <- pf.ForwardPorts()
+		select {
+		case errChan <- pf.ForwardPorts():
+		case <-ctx.Done():
+		}
 	}()
 
 	select {
@@ -108,7 +114,8 @@ type Tunnel struct {
 	TunnelConfig
 	Local int
 
-	stopChan chan struct{}
+	readyChan chan struct{}
+	stopChan  chan struct{}
 }
 
 // Close disconnects a tunnel connection. It always returns nil error to fulfil
