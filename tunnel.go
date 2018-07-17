@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
@@ -25,6 +26,17 @@ type Config struct {
 type Forwarder struct {
 	k8sClient  rest.Interface
 	restConfig *rest.Config
+}
+
+// keepAliveDisabler is an http.RoundTripper that sets DisableKeepAlive to true.
+type keepAliveDisabler struct {
+	rt http.RoundTripper
+}
+
+func (k *keepAliveDisabler) RoundTrip(req *http.Request) (*http.Response, error) {
+	//req.Header.Add("Connection", "close")
+
+	return k.rt.RoundTrip(req)
 }
 
 func New(config Config) (*Forwarder, error) {
@@ -59,8 +71,40 @@ func (f *Forwarder) ForwardPort(config TunnelConfig) (*Tunnel, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", u)
 
+	wrappedTransport := &keepAliveDisabler{
+		rt: transport,
+	}
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: wrappedTransport}, "POST", u)
+
+	tunnel, err := newTunnel(dialer, config)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+	return tunnel, err
+}
+
+type TunnelConfig struct {
+	Remote    int
+	Namespace string
+	PodName   string
+}
+
+type Tunnel struct {
+	TunnelConfig
+	Local int
+
+	stopChan chan struct{}
+}
+
+// Close disconnects a tunnel connection. It always returns nil error to fulfil
+// io.Closer interface.
+func (t *Tunnel) Close() error {
+	close(t.stopChan)
+	return nil
+}
+
+func newTunnel(dialer httpstream.Dialer, config TunnelConfig) (*Tunnel, error) {
 	local, err := getAvailablePort()
 	if err != nil {
 		return nil, microerror.Mask(err)
@@ -102,26 +146,6 @@ func (f *Forwarder) ForwardPort(config TunnelConfig) (*Tunnel, error) {
 	case <-pf.Ready:
 		return tunnel, nil
 	}
-}
-
-type TunnelConfig struct {
-	Remote    int
-	Namespace string
-	PodName   string
-}
-
-type Tunnel struct {
-	TunnelConfig
-	Local int
-
-	stopChan chan struct{}
-}
-
-// Close disconnects a tunnel connection. It always returns nil error to fulfil
-// io.Closer interface.
-func (t *Tunnel) Close() error {
-	close(t.stopChan)
-	return nil
 }
 
 func getAvailablePort() (int, error) {
