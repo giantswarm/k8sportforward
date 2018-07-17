@@ -28,17 +28,6 @@ type Forwarder struct {
 	restConfig *rest.Config
 }
 
-// keepAliveDisabler is an http.RoundTripper that sets DisableKeepAlive to true.
-type keepAliveDisabler struct {
-	rt http.RoundTripper
-}
-
-func (k *keepAliveDisabler) RoundTrip(req *http.Request) (*http.Response, error) {
-	//req.Header.Add("Connection", "close")
-
-	return k.rt.RoundTrip(req)
-}
-
 func New(config Config) (*Forwarder, error) {
 	if config.RestConfig == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.RestConfig must not be empty")
@@ -72,10 +61,7 @@ func (f *Forwarder) ForwardPort(config TunnelConfig) (*Tunnel, error) {
 		return nil, microerror.Mask(err)
 	}
 
-	wrappedTransport := &keepAliveDisabler{
-		rt: transport,
-	}
-	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: wrappedTransport}, "POST", u)
+	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", u)
 
 	tunnel, err := newTunnel(dialer, config)
 	if err != nil {
