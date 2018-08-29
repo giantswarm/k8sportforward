@@ -42,12 +42,6 @@ func TestGoroutineLeak(t *testing.T) {
 		t.Fatalf("could not create connection to server %v", err)
 	}
 
-	tunnelCfg := TunnelConfig{
-		Remote:    80,
-		Namespace: "default",
-		PodName:   "test",
-	}
-
 	streamConn, err := spdy.NewClientConnection(conn)
 	if err != nil {
 		t.Fatalf("could not create connection to server %v", err)
@@ -55,7 +49,12 @@ func TestGoroutineLeak(t *testing.T) {
 	dialer := &fakeDialer{
 		conn: streamConn,
 	}
-	_, err = newTunnel(dialer, tunnelCfg)
+	config := tunnelConfig{
+		Dialer: dialer,
+
+		RemotePort: 80,
+	}
+	_, err = newTunnel(config)
 	if err != nil {
 		t.Fatalf("could not create tunnel %v", err)
 	}
