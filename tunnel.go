@@ -77,6 +77,10 @@ func (t *Tunnel) Close() error {
 	return nil
 }
 
+func (t *Tunnel) LocalAddress() string {
+	return fmt.Sprintf("127.0.0.1:%d", t.localPort)
+}
+
 func getAvailablePort() (int, error) {
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
