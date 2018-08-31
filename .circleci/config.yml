@@ -10,3 +10,6 @@ jobs:
         chmod +x ./architect
 
     - run: ./architect build
+
+    - store_test_results:
+        path: /tmp/results
