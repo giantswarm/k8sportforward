@@ -9,11 +9,7 @@ import (
 	"strconv"
 
 	"github.com/giantswarm/microerror"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/httpstream"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
 )
 
@@ -98,25 +94,4 @@ func getAvailablePort() (int, error) {
 	}
 
 	return port, nil
-}
-
-// setConfigDefaults is copied and adjusted from client-go core/v1.
-// TODO what is different here? Why do we need it at all?
-func setConfigDefaults(config *rest.Config) error {
-	if config.GroupVersion == nil {
-		config.GroupVersion = &schema.GroupVersion{Group: "", Version: "v1"}
-	}
-	if config.APIPath == "" {
-		config.APIPath = "/api"
-	}
-	if config.NegotiatedSerializer == nil {
-		s := runtime.NewScheme()
-		c := serializer.NewCodecFactory(s)
-		config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: c}
-	}
-	if config.UserAgent == "" {
-		config.UserAgent = rest.DefaultKubernetesUserAgent()
-	}
-
-	return nil
 }
