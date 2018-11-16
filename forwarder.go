@@ -32,7 +32,7 @@ func NewForwarder(config ForwarderConfig) (*Forwarder, error) {
 	{
 		restConfigShallowCopy := *config.RestConfig
 
-		// We need to configre the config in order to generate correct
+		// We need to configure the config in order to generate correct
 		// URLs for dialer.
 		setConfigDefaults(&restConfigShallowCopy)
 
