@@ -19,6 +19,9 @@ import (
 	"time"
 )
 
+// TickerInterval defines the interval used by the ticker in Check* functions.
+var TickerInterval = time.Millisecond * 50
+
 type goroutine struct {
 	id    uint64
 	stack string
@@ -91,6 +94,20 @@ func interestingGoroutines(t ErrorReporter) []*goroutine {
 	return gs
 }
 
+// leakedGoroutines returns all goroutines we are considering leaked and
+// the boolean flag indicating if no leaks detected
+func leakedGoroutines(orig map[uint64]bool, interesting []*goroutine) ([]string, bool) {
+	leaked := make([]string, 0)
+	flag := true
+	for _, g := range interesting {
+		if !orig[g.id] {
+			leaked = append(leaked, g.stack)
+			flag = false
+		}
+	}
+	return leaked, flag
+}
+
 // ErrorReporter is a tiny subset of a testing.TB to make testing not such a
 // massive pain
 type ErrorReporter interface {
@@ -126,26 +143,27 @@ func CheckContext(ctx context.Context, t ErrorReporter) func() {
 	}
 	return func() {
 		var leaked []string
+		var ok bool
+		// fast check if we have no leaks
+		if leaked, ok = leakedGoroutines(orig, interestingGoroutines(t)); ok {
+			return
+		}
+		ticker := time.NewTicker(TickerInterval)
+		defer ticker.Stop()
+
 		for {
 			select {
-			case <-ctx.Done():
-				t.Errorf("leaktest: timed out checking goroutines")
-			default:
-				leaked = make([]string, 0)
-				for _, g := range interestingGoroutines(t) {
-					if !orig[g.id] {
-						leaked = append(leaked, g.stack)
-					}
-				}
-				if len(leaked) == 0 {
+			case <-ticker.C:
+				if leaked, ok = leakedGoroutines(orig, interestingGoroutines(t)); ok {
 					return
 				}
-				// don't spin needlessly
-				time.Sleep(time.Millisecond * 50)
 				continue
+			case <-ctx.Done():
+				t.Errorf("leaktest: %v", ctx.Err())
 			}
 			break
 		}
+
 		for _, g := range leaked {
 			t.Errorf("leaktest: leaked goroutine: %v", g)
 		}
