@@ -1,6 +1,7 @@
 package k8sportforward
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -26,6 +27,8 @@ func (d *fakeDialer) Dial(protocols ...string) (httpstream.Connection, string, e
 }
 
 func TestGoroutineLeak(t *testing.T) {
+	ctx := context.Background()
+
 	defer leaktest.Check(t)()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +57,7 @@ func TestGoroutineLeak(t *testing.T) {
 
 		RemotePort: 80,
 	}
-	_, err = newTunnel(config)
+	_, err = newTunnel(ctx, config)
 	if err != nil {
 		t.Fatalf("could not create tunnel %v", err)
 	}
