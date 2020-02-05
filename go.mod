@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/fortytw2/leaktest v1.3.1-0.20190606143808-d73c753520d9
-	github.com/giantswarm/microerror v0.1.1-0.20200204123133-8f12df8fee02
+	github.com/giantswarm/microerror v0.1.1-0.20200205143715-01b76f66cae6
 	github.com/giantswarm/micrologger v0.0.0-20200204125826-7578dee0008d // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/protobuf v1.3.2 // indirect

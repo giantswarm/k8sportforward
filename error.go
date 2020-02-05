@@ -2,7 +2,7 @@ package k8sportforward
 
 import "github.com/giantswarm/microerror"
 
-var invalidConfigError = microerror.Error{
+var invalidConfigError =&
 	Kind: "invalidConfigError",
 }
 
