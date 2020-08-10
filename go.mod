@@ -1,4 +1,4 @@
-module github.com/giantswarm/k8sportforward
+module github.com/giantswarm/k8sportforward/v2
 
 go 1.13
 
